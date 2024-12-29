@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject var pcmPlayer = PCMPlayer()
-    @State       var base64encodedPCMData = example1
+    @State       var base64encodedPCMData = ""
     @State       var sampleRate = "24000"
     @State       var channels = 1.0
     @State       var error: Error?
