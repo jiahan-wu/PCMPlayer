@@ -50,35 +50,37 @@ class PCMPlayer: ObservableObject {
     }
     
     func play(base64encodedPCMData: String) throws {
-        guard let data = Data(base64Encoded: base64encodedPCMData, options: [.ignoreUnknownCharacters]) else {
+        guard let pcmData = Data(base64Encoded: base64encodedPCMData, options: [.ignoreUnknownCharacters]) else {
             throw Error.base64DecodingFailed
         }
         
-        let count = data.count / 2
+        let frameCount = pcmData.count / 2
         
-        var floatArray = [Float](repeating: 0, count: count)
-        
-        data.withUnsafeBytes { ptr in
-            let shorts = ptr.bindMemory(to: Int16.self)
-            for i in 0..<count {
+        var floatArray = [Float](repeating: 0, count: frameCount)
+        pcmData.withUnsafeBytes { pointer in
+            let shorts = pointer.bindMemory(to: Int16.self)
+            for i in 0..<frameCount {
                 floatArray[i] = Float(shorts[i]) / Float(Int16.max)
             }
         }
         
         guard let pcmBuffer = AVAudioPCMBuffer(
             pcmFormat: format!,
-            frameCapacity: AVAudioFrameCount(count)
+            frameCapacity: AVAudioFrameCount(frameCount)
         ) else {
             throw Error.pcmBufferInitializationFailed
         }
         
         pcmBuffer.frameLength = pcmBuffer.frameCapacity
         
-        let channels = UnsafeBufferPointer(start: pcmBuffer.floatChannelData,
-                                           count: Int(format!.channelCount))
-        
-        for i in 0..<count {
-            channels[0][i] = floatArray[i]
+        let pcmBufferPointer = UnsafeBufferPointer(
+            start: pcmBuffer.floatChannelData,
+            count: frameCount
+        )        
+        for channel in 0..<format!.channelCount {
+            for frame in 0..<floatArray.count {
+                pcmBufferPointer[Int(channel)][frame] = floatArray[frame]
+            }
         }
         
         playerNode?.scheduleBuffer(
